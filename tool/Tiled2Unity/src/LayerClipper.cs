@@ -81,10 +81,15 @@ namespace Tiled2Unity
                     // Now transform the points relative to the tile
                     TmxMath.TransformPoints(transformedPoints, poly.TileCenter, poly.IsFlippedDiagnoally, poly.IsFlippedHorizontally, poly.IsFlippedVertically);
 
+                    float grid = 4;
+
                     foreach (var pt in transformedPoints)
                     {
                         float x = poly.PositionOnMap.X + pt.X;
                         float y = poly.PositionOnMap.Y + pt.Y;
+
+                        x = (float)Math.Round(x / grid) * grid;
+                        y = (float)Math.Round(y / grid) * grid;
 
                         ClipperLib.IntPoint point = xfFunc(x, y);
                         clipperPolygon.Add(point);

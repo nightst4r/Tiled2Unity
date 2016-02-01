@@ -88,6 +88,12 @@ namespace Tiled2Unity
                     WriteText(error, Color.Red);
                 }
             }
+
+            if ( File.Exists( Properties.Settings.Default.LastSourceFile) )
+            {
+                OpenTmxFile(Properties.Settings.Default.LastSourceFile);
+            }
+
         }
 
         private void OpenTmxFile(string tmxPath)
@@ -98,6 +104,7 @@ namespace Tiled2Unity
             this.buttonFolderBrowser.Enabled = false;
             this.buttonViewer.Enabled = false;
             this.buttonExport.Enabled = false;
+            this.txtSource.Text = tmxPath;
 
             try
             {
@@ -105,6 +112,9 @@ namespace Tiled2Unity
                 this.tmxExporter = new TiledMapExporter(this.tmxMap);
                 CheckExportButton();
                 ReportSummary();
+
+                Properties.Settings.Default.LastSourceFile = tmxPath;
+                Properties.Settings.Default.Save();
             }
             catch (TmxException tmx)
             {

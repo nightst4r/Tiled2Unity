@@ -45,6 +45,15 @@ namespace Tiled2Unity
 
             this.Points = points.ToList();
 
+            float grid = 4;
+            for ( int i= 0; i < Points.Count; i++ )
+            {
+                PointF pt = Points[i];
+                int x = (int)(Math.Round(pt.X / grid) * grid);
+                int y = (int)(Math.Round(pt.Y / grid) * grid);
+                Points[i] = new PointF(x, y);
+            }
+
             // Test if polygons are counter clocksise
             // From: http://stackoverflow.com/questions/1165647/how-to-determine-if-a-list-of-polygon-points-are-in-clockwise-order
             float sum = 0.0f;

@@ -47,6 +47,14 @@ namespace Tiled2Unity
                          select new PointF(x, y);
 
             this.Points = points.ToList();
+            float grid = 4;
+            for (int i = 0; i < Points.Count; i++)
+            {
+                PointF pt = Points[i];
+                int x = (int)(Math.Round(pt.X / grid) * grid);
+                int y = (int)(Math.Round(pt.Y / grid) * grid);
+                Points[i] = new PointF(x, y);
+            }
         }
 
         protected override string InternalGetDefaultName()

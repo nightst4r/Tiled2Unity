@@ -45,12 +45,13 @@
             this.showHelpToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.supportTiledMapEditorToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.donateToTiled2UnityToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
             this.aboutTiled2UnityToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.labelScale = new System.Windows.Forms.Label();
             this.textBoxScale = new System.Windows.Forms.TextBox();
             this.textBoxExportFolder = new System.Windows.Forms.TextBox();
-            this.donateToTiled2UnityToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.txtSource = new System.Windows.Forms.TextBox();
             this.menuStrip.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -62,10 +63,10 @@
             this.richTextBoxOutput.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(64)))), ((int)(((byte)(64)))), ((int)(((byte)(64)))));
             this.richTextBoxOutput.Font = new System.Drawing.Font("Consolas", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.richTextBoxOutput.ForeColor = System.Drawing.Color.White;
-            this.richTextBoxOutput.Location = new System.Drawing.Point(12, 27);
+            this.richTextBoxOutput.Location = new System.Drawing.Point(12, 57);
             this.richTextBoxOutput.Name = "richTextBoxOutput";
             this.richTextBoxOutput.ReadOnly = true;
-            this.richTextBoxOutput.Size = new System.Drawing.Size(899, 375);
+            this.richTextBoxOutput.Size = new System.Drawing.Size(899, 345);
             this.richTextBoxOutput.TabIndex = 0;
             this.richTextBoxOutput.Text = "";
             this.richTextBoxOutput.WordWrap = false;
@@ -209,6 +210,13 @@
             this.supportTiledMapEditorToolStripMenuItem.Text = "&Support Tiled On Patreon ...";
             this.supportTiledMapEditorToolStripMenuItem.Click += new System.EventHandler(this.supportTiledMapEditorToolStripMenuItem_Click);
             // 
+            // donateToTiled2UnityToolStripMenuItem
+            // 
+            this.donateToTiled2UnityToolStripMenuItem.Name = "donateToTiled2UnityToolStripMenuItem";
+            this.donateToTiled2UnityToolStripMenuItem.Size = new System.Drawing.Size(242, 22);
+            this.donateToTiled2UnityToolStripMenuItem.Text = "&Donate to Tiled2Unity";
+            this.donateToTiled2UnityToolStripMenuItem.Click += new System.EventHandler(this.donateToTiled2UnityToolStripMenuItem_Click);
+            // 
             // toolStripSeparator2
             // 
             this.toolStripSeparator2.Name = "toolStripSeparator2";
@@ -257,12 +265,14 @@
             this.textBoxExportFolder.Text = global::Tiled2Unity.Properties.Settings.Default.LastExportDirectory;
             this.textBoxExportFolder.TextChanged += new System.EventHandler(this.textBoxExportFolder_TextChanged);
             // 
-            // donateToTiled2UnityToolStripMenuItem
+            // txtSource
             // 
-            this.donateToTiled2UnityToolStripMenuItem.Name = "donateToTiled2UnityToolStripMenuItem";
-            this.donateToTiled2UnityToolStripMenuItem.Size = new System.Drawing.Size(242, 22);
-            this.donateToTiled2UnityToolStripMenuItem.Text = "&Donate to Tiled2Unity";
-            this.donateToTiled2UnityToolStripMenuItem.Click += new System.EventHandler(this.donateToTiled2UnityToolStripMenuItem_Click);
+            this.txtSource.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.txtSource.Location = new System.Drawing.Point(12, 31);
+            this.txtSource.Name = "txtSource";
+            this.txtSource.Size = new System.Drawing.Size(899, 20);
+            this.txtSource.TabIndex = 8;
             // 
             // Tiled2UnityForm
             // 
@@ -270,6 +280,7 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.SystemColors.ControlLightLight;
             this.ClientSize = new System.Drawing.Size(923, 509);
+            this.Controls.Add(this.txtSource);
             this.Controls.Add(this.textBoxScale);
             this.Controls.Add(this.labelScale);
             this.Controls.Add(this.buttonViewer);
@@ -315,6 +326,7 @@
         private System.Windows.Forms.ToolStripMenuItem supportTiledMapEditorToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator2;
         private System.Windows.Forms.ToolStripMenuItem donateToTiled2UnityToolStripMenuItem;
+        private System.Windows.Forms.TextBox txtSource;
     }
 }
 
