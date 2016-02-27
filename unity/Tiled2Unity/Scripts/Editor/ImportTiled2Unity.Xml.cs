@@ -147,9 +147,9 @@ namespace Tiled2Unity
 
                 if (isSame == false)
                 {
-                    File.WriteAllText(pathToMesh, raw, Encoding.UTF8);
-                    AssetDatabase.ImportAsset(pathToMesh, ImportAssetOptions.ForceSynchronousImport);
+                    File.WriteAllText(pathToMesh, raw, Encoding.UTF8);                    
                 }
+                AssetDatabase.ImportAsset(pathToMesh, ImportAssetOptions.ForceSynchronousImport);
             }
         }
     }
