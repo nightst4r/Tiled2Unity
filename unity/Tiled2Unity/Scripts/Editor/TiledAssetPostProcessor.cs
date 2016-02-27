@@ -13,7 +13,7 @@ namespace Tiled2Unity
     public class TiledAssetPostProcessor : AssetPostprocessor
     {
         private static bool UseThisImporter(string assetPath)
-        {
+        {           
             // Certain file types are ignored by this asset post processor (i.e. scripts)
             string[] ignoreThese = { ".cs", ".txt" };
             if (ignoreThese.Any(ext => String.Compare(ext, Path.GetExtension(assetPath), true) == 0))
@@ -62,6 +62,12 @@ namespace Tiled2Unity
         {
             foreach (string imported in importedAssets)
             {
+                if (imported.ToLower().EndsWith(".tmx"))
+                {
+                    Tiled2UnityMenuItems.CompileTMX(imported);
+                    continue;
+                }
+
                 if (UseThisImporter(imported))
                 {
                    //Debug.Log(string.Format("Imported: {0}", imported));

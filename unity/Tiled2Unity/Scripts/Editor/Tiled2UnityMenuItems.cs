@@ -25,7 +25,43 @@ namespace Tiled2Unity
                 packageFiles.AddRange(EnumerateAssetFilesAt("Assets/Tiled2Unity", ".cs", ".shader", ".txt"));
                 AssetDatabase.ExportPackage(packageFiles.ToArray(), path);
             }
+        }        
+
+        public static void CompileTMX( string path )
+        {
+            var Tiled2UnityExe = Application.dataPath.ToParentPath() + @"/Tools/Tiled2Unity/Tiled2Unity.exe";
+
+            if (System.IO.File.Exists(Tiled2UnityExe))
+            {
+                var startInfo = new System.Diagnostics.ProcessStartInfo(Tiled2UnityExe);
+                var tile = (Application.dataPath.ToParentPath() + "/" + path).ToBackSlashPath();
+                var output = (Application.dataPath + "/Tiled2Unity/").ToBackSlashPath();
+
+                startInfo.Arguments = string.Format("--verbose -a -s=1 \"{0}\" \"{1}", tile, output);
+                Debug.Log(startInfo.Arguments);
+
+                var proc = System.Diagnostics.Process.Start(startInfo);
+                proc.WaitForExit();
+            }
         }
+
+        [MenuItem("Tiled2Unity/Build Selected Tiles")]
+        static void BuildTiles()
+        {
+            foreach ( var obj in Selection.objects )
+            {
+                var asset = obj as DefaultAsset;
+                var file = AssetDatabase.GetAssetPath(asset);
+
+                if ( System.IO.Path.GetExtension(file).Equals(".tmx", StringComparison.InvariantCultureIgnoreCase) == false )
+                {
+                    continue;
+                }
+
+                CompileTMX(file);
+            }
+        }
+
 #endif
 
         // Not ready for public consumption yet. (But handy to have for development)

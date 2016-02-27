@@ -139,7 +139,7 @@ namespace Tiled2Unity
                 ImportUtils.ReadyToWrite(pathToMesh);
 
                 bool isSame = false;
-                if ( File.Exists(pathToMesh) )
+                if (File.Exists(pathToMesh))
                 {
                     string contents = File.ReadAllText(pathToMesh);
                     isSame = contents == raw;
@@ -147,8 +147,9 @@ namespace Tiled2Unity
 
                 if (isSame == false)
                 {
-                    File.WriteAllText(pathToMesh, raw, Encoding.UTF8);                    
+                    File.WriteAllText(pathToMesh, raw, Encoding.UTF8);
                 }
+
                 AssetDatabase.ImportAsset(pathToMesh, ImportAssetOptions.ForceSynchronousImport);
             }
         }
