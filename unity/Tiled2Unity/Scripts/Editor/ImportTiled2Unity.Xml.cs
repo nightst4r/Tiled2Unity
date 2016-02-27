@@ -137,8 +137,19 @@ namespace Tiled2Unity
                 // Save and import the asset
                 string pathToMesh = GetMeshAssetPath(fname);
                 ImportUtils.ReadyToWrite(pathToMesh);
-                File.WriteAllText(pathToMesh, raw, Encoding.UTF8);
-                AssetDatabase.ImportAsset(pathToMesh, ImportAssetOptions.ForceSynchronousImport);
+
+                bool isSame = false;
+                if ( File.Exists(pathToMesh) )
+                {
+                    string contents = File.ReadAllText(pathToMesh);
+                    isSame = contents == raw;
+                }
+
+                if (isSame == false)
+                {
+                    File.WriteAllText(pathToMesh, raw, Encoding.UTF8);
+                    AssetDatabase.ImportAsset(pathToMesh, ImportAssetOptions.ForceSynchronousImport);
+                }
             }
         }
     }
