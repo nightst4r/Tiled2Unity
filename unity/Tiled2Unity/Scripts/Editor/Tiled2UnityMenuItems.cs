@@ -37,8 +37,8 @@ namespace Tiled2Unity
                 var tile = (Application.dataPath.ToParentPath() + "/" + path).ToBackSlashPath();
                 var output = (Application.dataPath + "/Tiled2Unity/").ToBackSlashPath();
 
-                startInfo.Arguments = string.Format("--verbose -a -s=1 \"{0}\" \"{1}", tile, output);
-                Debug.Log(startInfo.Arguments);
+                startInfo.Arguments = string.Format("-a -s=1 \"{0}\" \"{1}", tile, output);
+                Debug.Log(Tiled2UnityExe + " " + startInfo.Arguments);
 
                 var proc = System.Diagnostics.Process.Start(startInfo);
                 proc.WaitForExit();

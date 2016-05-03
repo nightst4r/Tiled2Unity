@@ -236,6 +236,7 @@ namespace Tiled2Unity
             using (ChDir chdir = new ChDir(fullTsxPath))
             {
                 XDocument tsx = LoadDocument(fullTsxPath);
+                Program.WriteLine("Loading " + fullTsxPath);
                 ParseInternalTileset(tsx.Root, firstId);
             }
         }

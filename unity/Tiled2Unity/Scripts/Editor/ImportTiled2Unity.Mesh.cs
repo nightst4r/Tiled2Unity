@@ -139,6 +139,28 @@ namespace Tiled2Unity
                 // Add any tile animators
                 AddTileAnimatorsTo(child, goXml);
 
+                bool isFlipX = false;
+                float flipOffset = 0;
+                foreach (XElement subXml in goXml.Elements("GameObject"))
+                {
+                    isFlipX = isFlipX || ImportUtils.GetAttributeAsBoolean(subXml, "flipX", false);
+                    flipOffset = ImportUtils.GetAttributeAsFloat(subXml, "x", 0);
+                }
+
+                if (isFlipX)
+                {
+                    var flip = new XElement("Property");
+                    flip.Add(new XAttribute("name", "FlipX"));
+                    flip.Add(new XAttribute("value", "true"));                    
+
+                    var flipOff = new XElement("Property");
+                    flipOff.Add(new XAttribute("name", "FlipXOffset"));
+                    flipOff.Add(new XAttribute("value", flipOffset));
+
+                    goXml.Add(flip);
+                    goXml.Add(flipOff);
+                }
+
                 // Do we have any collision data?
                 // Check if we are setting 'isTrigger' for ourselves or for our childen
                 bool isTrigger = ImportUtils.GetAttributeAsBoolean(goXml, "isTrigger", isParentTrigger);

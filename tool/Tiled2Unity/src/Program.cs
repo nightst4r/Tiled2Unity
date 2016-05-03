@@ -325,9 +325,14 @@ namespace Tiled2Unity
         public static void WriteLine(string line)
         {
             line += "\n";
-            if (OnWriteLine != null)
-                OnWriteLine(line);
-            Console.Write(line);
+                        
+            if (line.StartsWith("Parsing ") == false && line.StartsWith("Parse ") == false)
+            {
+                if (OnWriteLine != null)
+                    OnWriteLine(line);
+
+                Console.Write(line);
+            }
             Log(line);
         }
 
