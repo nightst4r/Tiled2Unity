@@ -99,8 +99,11 @@ namespace Tiled2Unity
                     // Collision data for the layer
                     if (layer.Ignore != TmxLayer.IgnoreSettings.Collision)
                     {
-                        var collisionElements = CreateCollisionElementForLayer(layer);
-                        layerElement.Add(collisionElements);
+                        foreach (var collisionLayer in layer.CollisionLayers)
+                        {
+                            var collisionElements = CreateCollisionElementForLayer(collisionLayer);
+                            layerElement.Add(collisionElements);
+                        }
                     }
 
                     AssignUnityProperties(layer, layerElement, PrefabContext.TiledLayer);
@@ -169,13 +172,19 @@ namespace Tiled2Unity
                 AssignUnityProperties(tmxObject, xmlObject, PrefabContext.Object);
                 AssignTiledProperties(tmxObject, xmlObject);
 
+                // If we're not using a unity:layer override and there is an Object Type to go with this object then use it
+                if (String.IsNullOrEmpty(objectGroup.UnityLayerOverrideName))
+                {
+                    xmlObject.SetAttributeValue("layer", tmxObject.Type);
+                }
+
                 XElement objElement = null;
 
                 if (tmxObject.GetType() == typeof(TmxObjectRectangle))
                 {
                     if (this.tmxMap.Orientation == TmxMap.MapOrientation.Isometric)
                     {
-                        TmxObjectPolygon tmxIsometricRectangle = TmxObjectPolygon.FromIsometricRectangle(this.tmxMap, tmxObject as TmxObjectRectangle);
+                        TmxObjectPolygon tmxIsometricRectangle = TmxObjectPolygon.FromRectangle(this.tmxMap, tmxObject as TmxObjectRectangle);
                         objElement = CreatePolygonColliderElement(tmxIsometricRectangle);
                     }
                     else
@@ -242,11 +251,13 @@ namespace Tiled2Unity
             return xmlMeshes;
         }
 
-        private void AssignUnityProperties<T>(T tmx, XElement xml, PrefabContext context) where T : TmxHasProperties
+        private void AssignUnityProperties(TmxHasProperties tmxHasProperties, XElement xml, PrefabContext context)
         {
+            var properties = TmxHelper.GetPropertiesWithTypeDefaults(tmxHasProperties, this.tmxMap.ObjectTypes);
+
             // Only the root of the prefab can have a scale
             {
-                string unityScale = tmx.Properties.GetPropertyValueAsString("unity:scale", "");
+                string unityScale = properties.GetPropertyValueAsString("unity:scale", "");
                 if (!String.IsNullOrEmpty(unityScale))
                 {
                     float scale = 1.0f;
@@ -267,7 +278,7 @@ namespace Tiled2Unity
 
             // Only the root of the prefab can be marked a resource
             {
-                string unityResource = tmx.Properties.GetPropertyValueAsString("unity:resource", "");
+                string unityResource = properties.GetPropertyValueAsString("unity:resource", "");
                 if (!String.IsNullOrEmpty(unityResource))
                 {
                     bool resource = false;
@@ -288,7 +299,7 @@ namespace Tiled2Unity
 
             // Some users may want resource prefabs to be saved to a particular path
             {
-                string unityResourcePath = tmx.Properties.GetPropertyValueAsString("unity:resourcePath", "");
+                string unityResourcePath = properties.GetPropertyValueAsString("unity:resourcePath", "");
                 if (!String.IsNullOrEmpty(unityResourcePath))
                 {
                     if (context != PrefabContext.Root)
@@ -312,7 +323,7 @@ namespace Tiled2Unity
 
             // Any object can carry the 'isTrigger' setting and we assume any children to inherit the setting
             {
-                string unityIsTrigger = tmx.Properties.GetPropertyValueAsString("unity:isTrigger", "");
+                string unityIsTrigger = properties.GetPropertyValueAsString("unity:isTrigger", "");
                 if (!String.IsNullOrEmpty(unityIsTrigger))
                 {
                     bool isTrigger = false;
@@ -329,7 +340,7 @@ namespace Tiled2Unity
 
             // Any part of the prefab can be assigned a 'layer'
             {
-                string unityLayer = tmx.Properties.GetPropertyValueAsString("unity:layer", "");
+                string unityLayer = properties.GetPropertyValueAsString("unity:layer", "");
                 if (!String.IsNullOrEmpty(unityLayer))
                 {
                     xml.SetAttributeValue("layer", unityLayer);
@@ -338,7 +349,7 @@ namespace Tiled2Unity
 
             // Any part of the prefab can be assigned a 'tag'
             {
-                string unityTag = tmx.Properties.GetPropertyValueAsString("unity:tag", "");
+                string unityTag = properties.GetPropertyValueAsString("unity:tag", "");
                 if (!String.IsNullOrEmpty(unityTag))
                 {
                     xml.SetAttributeValue("tag", unityTag);
@@ -352,25 +363,28 @@ namespace Tiled2Unity
             knownProperties.Add("unity:sortingOrder");
             knownProperties.Add("unity:scale");
             knownProperties.Add("unity:isTrigger");
+            knownProperties.Add("unity:convex");
             knownProperties.Add("unity:ignore");
             knownProperties.Add("unity:resource");
             knownProperties.Add("unity:resourcePath");
 
-            var unknown = from p in tmx.Properties.PropertyMap
+            var unknown = from p in properties.PropertyMap
                           where p.Key.StartsWith("unity:")
                           where knownProperties.Contains(p.Key) == false
                           select p.Key;
             foreach (var p in unknown)
             {
-                Program.WriteWarning("Unknown unity property '{0}' in GameObject '{1}'", p, tmx.ToString());
+                Program.WriteWarning("Unknown unity property '{0}' in GameObject '{1}'", p, tmxHasProperties.ToString());
             }
         }
 
-        private void AssignTiledProperties<T>(T tmx, XElement xml) where T : TmxHasProperties
+        private void AssignTiledProperties(TmxHasProperties tmxHasProperties, XElement xml)
         {
+            var properties = TmxHelper.GetPropertiesWithTypeDefaults(tmxHasProperties, this.tmxMap.ObjectTypes);
+
             List<XElement> xmlProperties = new List<XElement>();
 
-            foreach (var prop in tmx.Properties.PropertyMap)
+            foreach (var prop in properties.PropertyMap)
             {
                 // Ignore properties that start with "unity:"
                 if (prop.Key.StartsWith("unity:"))
@@ -387,7 +401,7 @@ namespace Tiled2Unity
                 }
 
 
-                XElement xmlProp = new XElement("Property", new XAttribute("name", prop.Key), new XAttribute("value", prop.Value));
+                XElement xmlProp = new XElement("Property", new XAttribute("name", prop.Key), new XAttribute("value", prop.Value.Value));
                 xmlProperties.Add(xmlProp);
             }
 
@@ -516,8 +530,9 @@ namespace Tiled2Unity
 
                 xmlMeshObject.SetAttributeValue("name", mesh.ObjectName);
                 xmlMeshObject.SetAttributeValue("copy", mesh.UniqueMeshName);
-                xmlMeshObject.SetAttributeValue("sortingLayerName", tmxObjectTile.ParentObjectGroup.SortingLayerName);
-                xmlMeshObject.SetAttributeValue("sortingOrder", tmxObjectTile.ParentObjectGroup.SortingOrder);
+
+                xmlMeshObject.SetAttributeValue("sortingLayerName", tmxObjectTile.SortingLayerName ?? tmxObjectTile.ParentObjectGroup.SortingLayerName);
+                xmlMeshObject.SetAttributeValue("sortingOrder", tmxObjectTile.SortingOrder ?? tmxObjectTile.ParentObjectGroup.SortingOrder);
 
                 // This object, that actually displays the tile, has to be bumped up to account for the bottom-left corner problem with Tile Objects in Tiled
                 xmlMeshObject.SetAttributeValue("x", 0);

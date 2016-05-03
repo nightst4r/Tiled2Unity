@@ -27,10 +27,14 @@ namespace Tiled2Unity
         public IgnoreSettings Ignore { get; private set; }
         public uint[] TileIds { get; private set; }
         public List<TmxMesh> Meshes { get; private set; }
+        public List<TmxLayer> CollisionLayers { get; private set; }
 
         public TmxLayer(TmxMap map)
         {
             this.TmxMap = map;
+            this.Visible = true;
+            this.Opacity = 1.0f;
+            this.CollisionLayers = new List<TmxLayer>();
         }
 
         public uint GetTileIdAt(int x, int y)
@@ -50,6 +54,24 @@ namespace Tiled2Unity
         public int GetTileIndex(int x, int y)
         {
             return y * this.Width + x;
+        }
+
+        public bool IsExportingConvexPolygons()
+        {
+            // Always obey layer first
+            if (this.Properties.PropertyMap.ContainsKey("unity:convex"))
+            {
+                return this.Properties.GetPropertyValueAsBoolean("unity:convex", true);
+            }
+
+            // Use the map next
+            if (this.TmxMap.Properties.PropertyMap.ContainsKey("unity:convex"))
+            {
+                return this.TmxMap.Properties.GetPropertyValueAsBoolean("unity:convex", true);
+            }
+
+            // Use the program setting last
+            return Program.PreferConvexPolygons;
         }
 
     }

@@ -3,21 +3,33 @@ pushd %~dp0
 setlocal
 
 rem Build Tiled2Unity
-rem Note we're hardcoding Visual Studio 2010 here
+rem Note we're hardcoding Visual Studio 2015 here
  
-call "%VS100COMNTOOLS%vsvars32.bat"
-devenv /rebuild Release ../Tiled2Unity.sln
-if ERRORLEVEL 1 goto BuildFailed
+call "%VS140COMNTOOLS%vsvars32.bat"
 
-rem Use CS-Script to biuld Tiled2UnityLite
+rem Build Win32/x86
+echo -- Building Tiled2Unity x86
+devenv /rebuild "Release|x86" ..\Tiled2Unity.sln
+if ERRORLEVEL 1 goto BuildFailed
+echo -- Successfully built Tiled2Unity x86
+
+rem Build Win64/x64
+echo -- Building Tiled2Unity x64
+devenv /rebuild "Release|x64" ..\Tiled2Unity.sln
+if ERRORLEVEL 1 goto BuildFailed
+echo -- Successfully built Tiled2Unity x64
+
+rem Use CS-Script to build Tiled2UnityLite
 %CSSCRIPT_DIR%\cscs build-tiled2unitylite.cs
 
-rem Call our CSharp build script. This will create the auto-gen-builder.bat file we call next.
-%CSSCRIPT_DIR%\cscs build-installer.cs
+rem Call our CSharp build script. This will install and zip as well.
+echo -- Building installer for Tiled2Unity x86
+%CSSCRIPT_DIR%\cscs build-msi-installer.cs x86
+if ERRORLEVEL 1 goto MSIFailed
 
-rem Call the generated build file
-call auto-gen-builder.bat
-if ERRORLEVEL 1 goto InstallerFailed
+echo -- Building installer for Tiled2Unity x64
+%CSSCRIPT_DIR%\cscs build-msi-installer.cs x64
+if ERRORLEVEL 1 goto MSIFailed
 
 goto :Done
 
@@ -29,8 +41,12 @@ rem Exit conditions
 echo Tiled2Unity failed to build in Dev Studio
 exit /B 1
 
-:InstallerFailed
-echo Generated script to build installer failed
+:MSIFailed
+echo Failed to build MSI installer
+exit /B 1
+
+:InstallFailed
+echo Tile2Unity MSI installation failed or was canceled
 exit /B 1
 
 :Done

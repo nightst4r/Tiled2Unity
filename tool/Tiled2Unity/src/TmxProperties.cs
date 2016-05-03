@@ -7,28 +7,36 @@ namespace Tiled2Unity
 {
     public partial class TmxProperties
     {
-        public IDictionary<string, string> PropertyMap { get; private set; }
+        public IDictionary<string, TmxProperty> PropertyMap { get; private set; }
 
         public TmxProperties()
         {
-            this.PropertyMap = new Dictionary<string, string>();
+            this.PropertyMap = new Dictionary<string, TmxProperty>(StringComparer.InvariantCultureIgnoreCase);
         }
 
         public string GetPropertyValueAsString(string name)
         {
-            return this.PropertyMap[name];
+            return this.PropertyMap[name].Value;
         }
 
         public string GetPropertyValueAsString(string name, string defaultValue)
         {
             if (this.PropertyMap.ContainsKey(name))
-                return this.PropertyMap[name];
+                return this.PropertyMap[name].Value;
             return defaultValue;
         }
 
         public int GetPropertyValueAsInt(string name)
         {
-            return Convert.ToInt32(this.PropertyMap[name]);
+            try
+            {
+                return Convert.ToInt32(this.PropertyMap[name]);
+            }
+            catch (System.FormatException inner)
+            {
+                string message = String.Format("Error evaulating property '{0}={1}'\n  '{1}' is not an integer", name, this.PropertyMap[name]);
+                throw new TmxException(message, inner);
+            }
         }
 
         public int GetPropertyValueAsInt(string name, int defaultValue)
@@ -62,7 +70,7 @@ namespace Tiled2Unity
 
         public T GetPropertyValueAsEnum<T>(string name)
         {
-            return TmxHelper.GetStringAsEnum<T>(this.PropertyMap[name]);
+            return TmxHelper.GetStringAsEnum<T>(this.PropertyMap[name].Value);
         }
 
         public T GetPropertyValueAsEnum<T>(string name, T defaultValue)

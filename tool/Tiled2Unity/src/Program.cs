@@ -33,6 +33,7 @@ namespace Tiled2Unity
         static public bool AutoExport { get; private set; }
 #endif
         static public float Scale { get; set; }
+        static public bool PreferConvexPolygons { get; set; }
         static public float TexelBias { get; private set; }
         static public bool Verbose { get; private set; }
         static public bool Help { get; private set; }
@@ -42,25 +43,55 @@ namespace Tiled2Unity
 
         static public string LogFilePath { get; private set; }
 
+        static public string ObjectTypeXml { get; set; }
+
         static private NDesk.Options.OptionSet Options = new NDesk.Options.OptionSet()
             {
 #if !TILED_2_UNITY_LITE
                 { "a|auto-export", "Automatically export to UNITYDIR and close.", ae => Program.AutoExport = true },
 #endif
+                { "o|object-type-xml=", "Supply an Object Type XML file for types and their properties", o => Program.ObjectTypeXml = !String.IsNullOrEmpty(o) ? Path.GetFullPath(o) : "" },
                 { "s|scale=", "Scale the output vertices by a value.\nA value of 0.01 is popular for many Unity projects that use 'Pixels Per Unit' of 100 for sprites.\nDefault is 1 (no scaling).", s => Program.Scale = ParseFloatDefault(s, 1.0f) },
+                { "c|convex", "Limit polygon colliders to be convex with no holes. Increases the number of polygon colliders in export. Can be overriden on map or layer basis with unity:convex property.", c => Program.PreferConvexPolygons = true },
                 { "t|texel-bias=", "Bias for texel sampling.\nTexels are offset by 1 / value.\nDefault value is 8192.\n A value of 0 means no bias.", t => Program.TexelBias = ParseFloatDefault(t, DefaultTexelBias) },
                 { "v|verbose", "Print verbose messages.", v => Program.Verbose = true },
                 { "h|help", "Display this help message.", h => Program.Help = true },
             };
 
 #if TILED_2_UNITY_LITE
+
         // Scripting main
         static void Main(string[] args)
         {
             SetCulture();
 
+            // Listen to any success, warning, and error messages. Give a report when finished.
+            List<string> errors = new List<string>();
+            Action<string> funcError = delegate(string line)
+            {
+                errors.Add(line);
+            };
+
+            List<string> warnings = new List<string>();
+            Action<string> funcWaring = delegate(string line)
+            {
+                warnings.Add(line);
+            };
+
+            List<string> successes = new List<string>();
+            Action<string> funcSuccess = delegate(string line)
+            {
+                successes.Add(line);
+            };
+
+            // Temporarily capture output while exporting
+            Program.OnWriteError += new Program.WriteErrorDelegate(funcError);
+            Program.OnWriteWarning += new Program.WriteWarningDelegate(funcWaring);
+            Program.OnWriteSuccess += new Program.WriteSuccessDelegate(funcSuccess);
+
             // Default options
             Program.Scale = 1.0f;
+            Program.PreferConvexPolygons = false;
             Program.TexelBias = DefaultTexelBias;
             Program.Verbose = false;
             Program.Help = false;
@@ -80,8 +111,30 @@ namespace Tiled2Unity
 
                 // We should have everyting we need to export a TMX file to a Unity project
                 TmxMap tmxMap = TmxMap.LoadFromFile(Program.TmxPath);
+                tmxMap.LoadObjectTypeXml(Program.ObjectTypeXml);
                 TiledMapExporter tiledMapExporter = new TiledMapExporter(tmxMap);
                 tiledMapExporter.Export(Program.ExportUnityProjectDir);
+
+                // Write a summary that repeats warnings and errors
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine("Export completed");
+                foreach (string msg in successes)
+                {
+                    Console.WriteLine(msg);
+                }
+
+                Console.WriteLine("Warnings: {0}", warnings.Count);
+                foreach (string warning in warnings)
+                {
+                    Console.WriteLine(warning);
+                }
+            
+                Console.Error.WriteLine("Errors: {0}\n", errors.Count);
+                foreach (string error in errors)
+                {
+                    Console.WriteLine(error);
+                }
+                Console.WriteLine("----------------------------------------");
             }
         }
 #else
@@ -89,24 +142,23 @@ namespace Tiled2Unity
         [STAThread]
         static void Main(string[] args)
         {
-            if (PrintVersionOnly(args))
-            {
-                return;
-            }
-
             SetCulture();
 
             // Default options
             Program.AutoExport = false;
             Program.Scale = -1.0f;
+            Program.PreferConvexPolygons = false;
             Program.TexelBias = DefaultTexelBias;
             Program.Verbose = false;
             Program.Help = false;
             Program.TmxPath = "";
             Program.ExportUnityProjectDir = "";
+            Program.ObjectTypeXml = "";
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+
+            Properties.Settings.Default.Upgrade();
 
             using (Tiled2UnityForm form = new Tiled2UnityForm(args))
             {
@@ -147,6 +199,25 @@ namespace Tiled2Unity
                 Properties.Settings.Default.LastVertexScale = Program.Scale;
                 Properties.Settings.Default.Save();
             }
+#endif
+           // If we didn't set convex polygons as default then use old value
+#if !TILED_2_UNITY_LITE
+            if (Program.PreferConvexPolygons == false)
+            {
+                Program.PreferConvexPolygons = Properties.Settings.Default.LastPreferConvexPolygons;
+            }
+            Properties.Settings.Default.LastPreferConvexPolygons = Program.PreferConvexPolygons;
+            Properties.Settings.Default.Save();
+#endif
+
+            // If we didn't override ObjectTypeXml then use old value stored in settings
+#if !TILED_2_UNITY_LITE
+            if (String.IsNullOrEmpty(Program.ObjectTypeXml))
+            {
+                Program.ObjectTypeXml = Properties.Settings.Default.LastObjectTypeXmlFile;
+            }
+            Properties.Settings.Default.LastObjectTypeXmlFile = Program.ObjectTypeXml;
+            Properties.Settings.Default.Save();
 #endif
 
             // First left over option is the TMX file we are exporting
@@ -237,6 +308,7 @@ namespace Tiled2Unity
             Program.WriteLine("  unity:tag");
             Program.WriteLine("  unity:scale");
             Program.WriteLine("  unity:isTrigger");
+            Program.WriteLine("  unity:convex");
             Program.WriteLine("  unity:ignore (value = [false|true|collision|visual])");
             Program.WriteLine("  unity:resource (value = [false|true])");
             Program.WriteLine("  unity:resourcePath");
@@ -336,6 +408,15 @@ namespace Tiled2Unity
             AssemblyName name = new AssemblyName(thisApp.FullName);
             return name.Version.ToString();
         }
+
+        public static string GetPlatform()
+        {
+#if T2U_64BIT
+            return "Win64";
+#else
+            return "Win32";
+#endif
+        }
 #endif
 
 #if TILED_2_UNITY_LITE
@@ -387,23 +468,6 @@ namespace Tiled2Unity
             customCulture.NumberFormat.NumberDecimalSeparator = ".";
             System.Threading.Thread.CurrentThread.CurrentCulture = customCulture;
         }
-
-#if !TILED_2_UNITY_LITE
-        static private bool PrintVersionOnly(string[] args)
-        {
-            if (args != null && args.Count() == 1)
-            {
-                // This is so stupid
-                if (args[0] == "--write-version-file")
-                {
-                    File.WriteAllText("t2u-version.txt", Program.GetVersion());
-                    return true;
-                }
-            }
-
-            return false;
-        }
-#endif
 
         static private float ParseFloatDefault(string str, float defaultValue)
         {

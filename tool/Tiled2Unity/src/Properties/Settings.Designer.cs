@@ -85,12 +85,25 @@ namespace Tiled2Unity.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        public global::System.Collections.Specialized.StringCollection PerLayerColors {
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool LastPreferConvexPolygons {
             get {
-                return ((global::System.Collections.Specialized.StringCollection)(this["PerLayerColors"]));
+                return ((bool)(this["LastPreferConvexPolygons"]));
             }
             set {
-                this["PerLayerColors"] = value;
+                this["LastPreferConvexPolygons"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string LastObjectTypeXmlFile {
+            get {
+                return ((string)(this["LastObjectTypeXmlFile"]));
+            }
+            set {
+                this["LastObjectTypeXmlFile"] = value;
             }
         }
         

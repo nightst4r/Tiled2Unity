@@ -28,17 +28,21 @@ namespace Tiled2Unity
             // The "fullClipper" combines the clipper results from the smaller pieces
             ClipperLib.Clipper fullClipper = new ClipperLib.Clipper();
 
+            // Limit to polygon "type" that matches the collision layer name (unless we are overriding the whole layer to a specific Unity Layer Name)
+            bool usingUnityLayerOverride = !String.IsNullOrEmpty(tmxLayer.UnityLayerOverrideName);
+
             // From the perspective of Clipper lines are polygons too
             // Closed paths == polygons
             // Open paths == lines
             var polygonGroups = from y in Enumerable.Range(0, tmxLayer.Height)
                                 from x in Enumerable.Range(0, tmxLayer.Width)
                                 let rawTileId = tmxLayer.GetRawTileIdAt(x, y)
+                                where rawTileId != 0
                                 let tileId = TmxMath.GetTileIdWithoutFlags(rawTileId)
-                                where tileId != 0
                                 let tile = tmxMap.Tiles[tileId]
                                 from polygon in tile.ObjectGroup.Objects
                                 where (polygon as TmxHasPoints) != null
+                                where  usingUnityLayerOverride || String.Compare(polygon.Type, tmxLayer.Name, true) == 0
                                 let groupX = x / LayerClipper.GroupBySize
                                 let groupY = y / LayerClipper.GroupBySize
                                 group new
@@ -117,5 +121,31 @@ namespace Tiled2Unity
 
             return fullSolution;
         }
+
+        // Put the closed path polygons into an enumerable collection of an array of points.
+        // Each array of points in a path in a "complex" polygon that supports convace edges and holes
+        public static IEnumerable<PointF[]> SolutionPolygons_Complex(ClipperLib.PolyTree solution)
+        {
+            foreach (var points in ClipperLib.Clipper.ClosedPathsFromPolyTree(solution))
+            {
+                var pointfs = points.Select(pt => new PointF(pt.X, pt.Y));
+                yield return pointfs.ToArray();
+            }
+        }
+
+        // Put the closed path polygons into an enumerable collection of an array of points.
+        // Each array of points in a separate convex polygon
+        public static IEnumerable<PointF[]> SolutionPolygons_Simple(ClipperLib.PolyTree solution)
+        {
+            ConvexPolygonSet convexPolygonSet = new ConvexPolygonSet();
+            convexPolygonSet.MakeConvextSetFromClipperSolution(solution);
+
+            foreach (var polygon in convexPolygonSet.Polygons)
+            {
+                var pointfs = polygon.Select(pt => new PointF(pt.Xf, pt.Yf));
+                yield return pointfs.ToArray();
+            }
+        }
+
     }
 }

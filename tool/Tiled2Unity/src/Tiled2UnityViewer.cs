@@ -17,17 +17,15 @@ namespace Tiled2Unity
     public partial class Tiled2UnityViewer : Form
     {
         private static readonly float GridSize = 3.0f;
+        private static readonly int MaxPreviewTilesWide = 256;
+        private static readonly int MaxPreviewTilesHigh = 256;
 
         private TmxMap tmxMap = null;
         private float scale = 1.0f;
-        private PreviewPreferencesForm preferencesForm;
 
         public Tiled2UnityViewer(TmxMap tmxMap)
         {
             this.tmxMap = tmxMap;
-            this.preferencesForm = new PreviewPreferencesForm();
-            this.preferencesForm.ApplyChanges += new PreviewPreferencesForm.OnApplyChanges(preferencesForm_ApplyChanges);
-            this.preferencesForm.InitializePrefernces(tmxMap);
             InitializeComponent();
         }
 
@@ -44,6 +42,25 @@ namespace Tiled2Unity
             CreateAndShowBitmap();
         }
 
+        private int GetMaxTilesWide(TmxMap tmxMap)
+        {
+            return Math.Min(tmxMap.Width, MaxPreviewTilesWide);
+        }
+
+        private int GetMaxTilesHigh(TmxMap tmxMap)
+        {
+            return Math.Min(tmxMap.Height, MaxPreviewTilesHigh);
+        }
+
+        private int GetMaxTilesWide(TmxLayer layer)
+        {
+            return Math.Min(layer.Width, MaxPreviewTilesWide);
+        }
+
+        private int GetMaxTilesHigh(TmxLayer layer)
+        {
+            return Math.Min(layer.Height, MaxPreviewTilesHigh);
+        }
 
         private void CreateAndShowBitmap()
         {
@@ -56,10 +73,10 @@ namespace Tiled2Unity
             this.view400ToolStripMenuItem.Checked = this.scale == 4.0f;
             this.view800ToolStripMenuItem.Checked = this.scale == 8.0f;
 
-            this.Text = String.Format("Tiled2Unity Previewer (Scale = {0})", this.scale);
-
             Properties.Settings.Default.LastPreviewScale = this.scale;
             Properties.Settings.Default.Save();
+
+            this.Text = String.Format("Tiled2Unity Previewer (Scale = {0})", this.scale);
 
             RectangleF boundary = CalculateBoundary();
             this.pictureBoxViewer.Image = CreateBitmap(boundary);
@@ -73,13 +90,11 @@ namespace Tiled2Unity
             var objBounds = from g in this.tmxMap.ObjectGroups
                             from o in g.Objects
                             where o.Visible == true
-                            where IsLayerEnabled(g.Name)
                             select o.GetWorldBounds();
 
             // Take boundaries from objects embedded in tiles
             var tileBounds = from layer in tmxMap.Layers
                              where layer.Visible == true
-                             where IsLayerEnabled(layer.Name)
                              from y in Enumerable.Range(0, layer.Height)
                              from x in Enumerable.Range(0, layer.Width)
                              let tileId = layer.GetTileIdAt(x, y)
@@ -104,14 +119,36 @@ namespace Tiled2Unity
         {
             Bitmap bitmap = null;
 
+            StringBuilder builderMessage = new StringBuilder();
+            StringBuilder builderError = new StringBuilder();
+
+            builderMessage.AppendLine("Previewing may take a while due to the size and complexity of your map.");
+            builderMessage.AppendLine("Note that map previewing is limited to 256x256 tiles.");
+
             try
             {
-                bitmap = new Bitmap((int)Math.Ceiling(bounds.Width * this.scale) + 1, (int)Math.Ceiling(bounds.Height * this.scale) + 1);
+                bitmap = new Bitmap((int)Math.Ceiling(bounds.Width * this.scale) + 1, (int)Math.Ceiling(bounds.Height * this.scale) + 1, PixelFormat.Format32bppPArgb);
             }
             catch (System.ArgumentException)
             {
-                MessageBox.Show("Cannot preview at these scale. Try a lower scale.", "Too Big!");
+                builderMessage.AppendFormat("Map cannot be previewed at {0} scale. Try a smaller scale.\n", this.scale);
+                builderMessage.AppendLine("Image will be constructed on a 1024x1024 canvas. Parts of your map may be cropped.");
+                builderError.AppendLine("Map can not be previewed at this scale and complexity in full.\n");
+
                 bitmap = new Bitmap(1024, 1024);
+            }
+
+            // Put up a quick message before we construct the real bitmap (which can take some time)
+            {
+                Bitmap bmpMessage = new Bitmap(512, 256);
+                using (Graphics g = Graphics.FromImage(bmpMessage))
+                {
+                    g.FillRectangle(Brushes.LavenderBlush, 0, 0, bmpMessage.Width, bmpMessage.Height);
+                    g.DrawRectangle(Pens.Black, 0, 0, bmpMessage.Width - 1, bmpMessage.Height -1);
+                    DrawString(g, builderMessage.ToString(), 10, 10);
+                }
+                this.pictureBoxViewer.Image = bmpMessage;
+                Refresh();
             }
 
             using (Pen pen = new Pen(Color.Black, 1.0f))
@@ -125,7 +162,7 @@ namespace Tiled2Unity
                 g.ScaleTransform(this.scale, this.scale);
 
                 g.FillRectangle(Brushes.WhiteSmoke, 0, 0, bounds.Width, bounds.Height);
-                g.DrawRectangle(pen, 1, 1, bounds.Width-1, bounds.Height-1);
+                g.DrawRectangle(pen, 1, 1, bounds.Width - 1, bounds.Height - 1);
 
                 g.TranslateTransform(-bounds.X, -bounds.Y);
                 DrawBackground(g);
@@ -133,6 +170,10 @@ namespace Tiled2Unity
                 DrawTiles(g);
                 DrawColliders(g);
                 DrawObjectColliders(g);
+
+                // Were there any errors?
+                g.ResetTransform();
+                DrawError(g, builderError.ToString(), 10, 10);
             }
 
             return bitmap;
@@ -162,9 +203,9 @@ namespace Tiled2Unity
         private void DrawGridQuad(Graphics g)
         {
             HashSet<Point> points = new HashSet<Point>();
-            for (int x = 0; x < this.tmxMap.Width; ++x)
+            for (int x = 0; x < GetMaxTilesWide(this.tmxMap); ++x)
             {
-                for (int y = 0; y < this.tmxMap.Height; ++y)
+                for (int y = 0; y < GetMaxTilesHigh(this.tmxMap); ++y)
                 {
                     // Add the "top-left" corner of a tile
                     points.Add(TmxMath.TileCornerInGridCoordinates(this.tmxMap, x, y));
@@ -268,7 +309,7 @@ namespace Tiled2Unity
                     startPos.Y -= rowHeight;
                 }
 
-                for (; startTile.X < this.tmxMap.Width; startTile.X++)
+                for (; startTile.X < GetMaxTilesWide(this.tmxMap); startTile.X++)
                 {
                     Point rowTile = startTile;
                     Point rowPos = startPos;
@@ -278,7 +319,7 @@ namespace Tiled2Unity
                         rowPos.Y += rowHeight;
                     }
 
-                    for (; rowTile.Y < this.tmxMap.Height; rowTile.Y++)
+                    for (; rowTile.Y < GetMaxTilesHigh(this.tmxMap); rowTile.Y++)
                     {
                         points.Add(TmxMath.AddPoints(rowPos, oct[1]));
                         points.Add(TmxMath.AddPoints(rowPos, oct[2]));
@@ -386,9 +427,6 @@ namespace Tiled2Unity
                 if (layer.Visible == false)
                     continue;
 
-                if (IsLayerEnabled(layer.Name) == false)
-                    continue;
-
                 if (layer.Ignore == TmxLayer.IgnoreSettings.Visual)
                     continue;
 
@@ -405,8 +443,8 @@ namespace Tiled2Unity
 
                 // The range of x and y depends on the render order of the tiles
                 // By default we draw right and down but may reverse the tiles we visit
-                var range_x = Enumerable.Range(0, layer.Width);
-                var range_y = Enumerable.Range(0, layer.Height);
+                var range_x = Enumerable.Range(0, GetMaxTilesWide(layer));
+                var range_y = Enumerable.Range(0, GetMaxTilesHigh(layer));
 
                 if (this.tmxMap.DrawOrderHorizontal == -1)
                     range_x = range_x.Reverse();
@@ -481,11 +519,18 @@ namespace Tiled2Unity
             for (int l = 0; l < this.tmxMap.Layers.Count; ++l)
             {
                 TmxLayer layer = this.tmxMap.Layers[l];
-                if (layer.Visible == true && IsLayerEnabled(layer.Name) && layer.Ignore != TmxLayer.IgnoreSettings.Collision)
+
+                if (layer.Visible == true && layer.Ignore != TmxLayer.IgnoreSettings.Collision)
                 {
-                    Color lineColor = this.preferencesForm.GetLayerColor(layer.Name);
-                    Color polyColor = Color.FromArgb(128, lineColor);
-                    DrawLayerColliders(g, layer, polyColor, lineColor);
+                    foreach (TmxLayer collisionLayer in layer.CollisionLayers)
+                    {
+                        TmxObjectType type = this.tmxMap.ObjectTypes.GetValueOrDefault(collisionLayer.Name);
+
+                        Color lineColor = type.Color;
+                        Color polyColor = Color.FromArgb(128, lineColor);
+
+                        DrawLayerColliders(g, collisionLayer, polyColor, lineColor);
+                    }
                 }
             }
         }
@@ -497,18 +542,26 @@ namespace Tiled2Unity
 
             ClipperLib.PolyTree solution = LayerClipper.ExecuteClipper(this.tmxMap, layer, xfFunc, progFunc);
 
+            float inverseScale = 1.0f / this.scale;
+            if (inverseScale > 1)
+                inverseScale = 1;
+
             using (GraphicsPath path = new GraphicsPath())
-            using (Pen pen = new Pen(lineColor, 1.0f))
-            using (Brush brush = new HatchBrush(HatchStyle.ForwardDiagonal, lineColor, polyColor))
+            using (Pen pen = new Pen(lineColor, 2.0f * inverseScale))
+            using (Brush brush = new HatchBrush(HatchStyle.Percent60, polyColor, Color.Transparent))
             {
                 pen.Alignment = PenAlignment.Inset;
 
                 // Draw all closed polygons
-                foreach (var points in ClipperLib.Clipper.ClosedPathsFromPolyTree(solution))
+                // First, add them to the path
+                // (But are we using convex polygons are complex polygons?
+                var polygons = layer.IsExportingConvexPolygons() ? LayerClipper.SolutionPolygons_Simple(solution) : LayerClipper.SolutionPolygons_Complex(solution);
+                foreach (var pointfArray in polygons)
                 {
-                    var pointfs = points.Select(pt => new PointF(pt.X, pt.Y));
-                    path.AddPolygon(pointfs.ToArray());
+                    path.AddPolygon(pointfArray);
                 }
+
+                // Then, fill and draw the path full of polygons
                 if (path.PointCount > 0)
                 {
                     g.FillPath(brush, path);
@@ -534,7 +587,6 @@ namespace Tiled2Unity
         {
             var collidersObjectGroup = from item in this.tmxMap.ObjectGroups
                                        where item.Visible == true
-                                       where IsLayerEnabled(item.Name)
                                        select item;
 
             foreach (var objGroup in collidersObjectGroup)
@@ -546,7 +598,21 @@ namespace Tiled2Unity
                 {
                     if (obj.Visible)
                     {
-                        DrawObjectCollider(g, obj, objGroup.Color);
+                        // Either type color or object color or unity:layer color
+                        Color objColor = objGroup.Color;
+                        string collisionType = objGroup.UnityLayerOverrideName;
+
+                        if (String.IsNullOrEmpty(collisionType))
+                        {
+                            collisionType = obj.Type;
+                        }
+
+                        if (this.tmxMap.ObjectTypes.TmxObjectTypeMapping.ContainsKey(collisionType))
+                        {
+                            objColor = this.tmxMap.ObjectTypes.TmxObjectTypeMapping[collisionType].Color;
+                        }
+
+                        DrawObjectCollider(g, obj, objColor);
                     }
                 }
 
@@ -576,7 +642,7 @@ namespace Tiled2Unity
                 {
                     if (this.tmxMap.Orientation == TmxMap.MapOrientation.Isometric)
                     {
-                        TmxObjectPolygon tmxIsometricRectangle = TmxObjectPolygon.FromIsometricRectangle(this.tmxMap, tmxObject as TmxObjectRectangle);
+                        TmxObjectPolygon tmxIsometricRectangle = TmxObjectPolygon.FromRectangle(this.tmxMap, tmxObject as TmxObjectRectangle);
                         DrawPolygon(g, pen, brush, tmxIsometricRectangle);
                     }
                     else
@@ -706,6 +772,20 @@ namespace Tiled2Unity
             g.DrawString(text, SystemFonts.DefaultFont, Brushes.White, x, y);
         }
 
+        private void DrawError(Graphics g, string text, float x, float y)
+        {
+            g.DrawString(text, SystemFonts.DefaultFont, Brushes.Red, x - 1, y - 1);
+            g.DrawString(text, SystemFonts.DefaultFont, Brushes.Red, x, y - 1);
+            g.DrawString(text, SystemFonts.DefaultFont, Brushes.Red, x + 1, y - 1);
+            g.DrawString(text, SystemFonts.DefaultFont, Brushes.Red, x + 1, y);
+            g.DrawString(text, SystemFonts.DefaultFont, Brushes.Red, x + 1, y + 1);
+            g.DrawString(text, SystemFonts.DefaultFont, Brushes.Red, x, y + 1);
+            g.DrawString(text, SystemFonts.DefaultFont, Brushes.Red, x - 1, y + 1);
+            g.DrawString(text, SystemFonts.DefaultFont, Brushes.Red, x - 1, y);
+
+            g.DrawString(text, SystemFonts.DefaultFont, Brushes.White, x, y);
+        }
+
         private void saveImageAsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             SaveFileDialog dialog = new SaveFileDialog();
@@ -779,30 +859,9 @@ namespace Tiled2Unity
             CreateAndShowBitmap();
         }
 
-        private bool IsLayerEnabled(string name)
-        {
-            return this.preferencesForm.GetLayerPreviewing(name);
-        }
-
-        private void previewOptionsToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            OpenPreferencesForm();
-        }
-
-        private void OpenPreferencesForm()
-        {
-            this.preferencesForm.Show(this);
-        }
-
         void preferencesForm_ApplyChanges()
         {
             CreateAndShowBitmap();
-        }
-
-        private void Tiled2UnityViewer_FormClosing(object sender, FormClosingEventArgs e)
-        {
-            this.preferencesForm.ApplyChanges -= preferencesForm_ApplyChanges;
-            this.preferencesForm.Close();
         }
 
     } // end class
