@@ -169,6 +169,15 @@ namespace Tiled2Unity
                 xmlObject.SetAttributeValue("y", pos.Y);
                 xmlObject.SetAttributeValue("rotation", tmxObject.Rotation);
 
+                // MikeW
+                // Copy over the type attribute into the property block
+                if (tmxObject.Type != null && tmxObject.Type != "")
+                {
+                    XElement xmlProp = new XElement("Property", new XAttribute("name", "Type"), new XAttribute("value", tmxObject.Type));
+                    xmlObject.Add(xmlProp);
+                }
+
+
                 AssignUnityProperties(tmxObject, xmlObject, PrefabContext.Object);
                 AssignTiledProperties(tmxObject, xmlObject);
 
